@@ -33,8 +33,9 @@ bool Lexer::match(char c) {
 	return true;
 }
 
-void Lexer::addTok(Type type){
-
+void Lexer::addTok(Type type) {
+    std::string text(source.substr(start, current - start));
+    tokenList.push_back(Token(type, text, line));
 }
 
 void Lexer::scanTok() {

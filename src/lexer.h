@@ -15,6 +15,7 @@ class Lexer {
 
 	private:
 		std::string_view source;
+		std::vector<Token> tokenList;
 		size_t start = 0;
 		size_t current = 0;
 		size_t line = 1;
