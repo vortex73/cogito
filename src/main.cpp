@@ -3,36 +3,101 @@
 
 #include <string>
 
-// Assuming Type is an enum
-std::string typeToString(Type type) {
-    switch (type) {
-        case Type::tok_lparen: return "tok_lparen";
-        case Type::tok_rparen: return "tok_rparen";
-        case Type::tok_lbrace: return "tok_lbrace";
-        case Type::tok_rbrace: return "tok_rbrace";
-        case Type::tok_semicolon: return "tok_semicolon";
-        case Type::tok_eof: return "tok_eof";
-        case Type::tok_equal: return "tok_equal";
-        case Type::tok_plus: return "tok_plus";
-        case Type::tok_minus: return "tok_minus";
-        case Type::tok_star: return "tok_star";
-        case Type::tok_slash: return "tok_slash";
-        default: return "unknown";
-    }
+#include <unordered_map>
+#include <string>
+
+std::unordered_map<Type, std::string> typeToString = {
+	// Types
+	{Type::tok_unidentified, "tok_unidentified"},
+
+	// Keywords
+	{Type::tok_int, "tok_int"},
+	{Type::tok_char, "tok_char"},
+	{Type::tok_double, "tok_double"},
+	{Type::tok_float, "tok_float"},
+	{Type::tok_auto, "tok_auto"},
+	{Type::tok_enum, "tok_enum"},
+	{Type::tok_restrict, "tok_restrict"},
+	{Type::tok_unsigned, "tok_unsigned"},
+	{Type::tok_break, "tok_break"},
+	{Type::tok_extern, "tok_extern"},
+	{Type::tok_return, "tok_return"},
+	{Type::tok_case, "tok_case"},
+	{Type::tok_signed, "tok_signed"},
+	{Type::tok_for, "tok_for"},
+	{Type::tok_while, "tok_while"},
+	{Type::tok_const, "tok_const"},
+	{Type::tok_volatile, "tok_volatile"},
+	{Type::tok_short, "tok_short"},
+	{Type::tok_goto, "tok_goto"},
+	{Type::tok_sizeof, "tok_sizeof"},
+	{Type::tok_bool, "tok_bool"},
+	{Type::tok_default, "tok_default"},
+	{Type::tok_inline, "tok_inline"},
+	{Type::tok_struct, "tok_struct"},
+	{Type::tok_imaginary, "tok_imaginary"},
+	{Type::tok_do, "tok_do"},
+	{Type::tok_switch, "tok_switch"},
+	{Type::tok_complex, "tok_complex"},
+	{Type::tok_if, "tok_if"},
+	{Type::tok_static, "tok_static"},
+	{Type::tok_continue, "tok_continue"},
+	{Type::tok_long, "tok_long"},
+	{Type::tok_typedef, "tok_typedef"},
+	{Type::tok_else, "tok_else"},
+	{Type::tok_register, "tok_register"},
+	{Type::tok_union, "tok_union"},
+	{Type::tok_void, "tok_void"},
+	{Type::tok_Bool, "tok_Bool"},
+	{Type::tok_Complex, "tok_Complex"},
+	{Type::tok_Imaginary, "tok_Imaginary"},
+
+	// Language Constructs
+	{Type::tok_numeric, "tok_numeric"},
+	{Type::tok_identifier, "tok_identifier"},
+	{Type::tok_eof, "tok_eof"},
+	{Type::tok_lparen, "tok_lparen"},
+	{Type::tok_rparen, "tok_rparen"},
+	{Type::tok_lbrace, "tok_lbrace"},
+	{Type::tok_rbrace, "tok_rbrace"},
+	{Type::tok_semicolon, "tok_semicolon"},
+
+	// Operators
+	{Type::tok_equal, "tok_equal"},
+	{Type::tok_plus, "tok_plus"},
+	{Type::tok_minus, "tok_minus"},
+	{Type::tok_star, "tok_star"},
+	{Type::tok_hash, "tok_hash"},
+	{Type::tok_slash, "tok_slash"}
+};
+
+// Usage example
+std::string typeToStringLookup(Type type) {
+	auto it = typeToString.find(type);
+	if (it != typeToString.end()) {
+		return it->second;
+	}
+	return "unknown";
 }
 
 
+
 int main() {
-    std::string sourceCode = "({})+";
-    Lexer lexer(sourceCode);
+	std::string sourceCode = 
+		"int myFunc(int a, int b) {"
+		"    b = b+a;"
+		"    return b"
+		"}";
+	Lexer lexer(sourceCode);
+	lexer.initKeywords();
 
-    // Tokenize the input source code
-    auto tokens = lexer.tokenize();
+	// Tokenize the input source code
+	auto tokens = lexer.tokenize();
 
-    // Print the tokens
-    for (const auto& token : tokens) {
-        std::cout << "Token: " << typeToString(token.type) << " Literal: " << "\n"; }
+	// Print the tokens
+	/*for (const auto& token : tokens) {*/
+	/*	std::cout << "Token: " << typeToStringLookup(token.type) << "\n"; }*/
 
-    return 0;
+	return 0;
 }
 
