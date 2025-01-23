@@ -76,6 +76,7 @@ class Lexer {
 
 		void identifier(std::vector<Token>* tokenList);
 		void number(std::vector<Token>* tokenList);
+		void scanPunc(std::vector<Token>* tokenList, char c);
 		void scanTok(std::vector<Token>* tokenList);
 		void handleNumber();
 		void handleIdentifier();
