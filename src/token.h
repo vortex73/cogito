@@ -49,6 +49,7 @@ enum class Type {
 	tok_Imaginary,
 
 	// Language Constructs
+	tok_string,
 	tok_numeric,
 	tok_identifier,
 	tok_eof,
@@ -88,7 +89,6 @@ enum class Type {
 
 
 	// Operators
-	tok_equal,
 	tok_plus,
 	tok_minus,
 	tok_star,

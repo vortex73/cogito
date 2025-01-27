@@ -1,0 +1,12 @@
+%{
+#include <string>
+%}
+
+struct printMap {
+	Type type;
+	std::string;
+};
+
+%%
+tok_string, "tok_string"
+%%

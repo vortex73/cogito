@@ -1,11 +1,23 @@
 #include "lexer.h"
 #include "token.h"
 #include <cctype>
+#include <iostream>
+#include <ostream>
 #include <stdexcept>
+#include <immintrin.h>
+
+#ifdef __GNUC__
+    #define LIKELY(x)    __builtin_expect((x),1)
+    #define UNLIKELY(x)  __builtin_expect((x),0)
+#else
+    #define LIKELY(x)    (x)
+    #define UNLIKELY(x)  (x)
+#endif
 
 std::vector<Token> Lexer::tokenize() {
 	std::vector<Token> tokenList;
-	while (!isEnd()) {
+	tokenList.reserve(source.length()/4 + 16);
+	while (LIKELY(current < source.length())) {
 		start = current;
 		scanTok(&tokenList);
 	}
@@ -13,20 +25,81 @@ std::vector<Token> Lexer::tokenize() {
 	return tokenList;
 }
 
+void Lexer::ignoreWhitespace() {
+    while (!isEnd()) {
+        char c = peek();
+        if (c == ' ' || c == '\t' || c == '\n') {
+            
+            if (c == '\n') {
+                line++;  
+            }
+            proceed();  
+        } else {
+            break;  
+        }
+    }
+}
+
 bool const Lexer::isEnd() {
 	return current >= source.length();
 }
 
 char Lexer::proceed() {
+	__builtin_prefetch(&source[current + 1],0,0);
 	return source[current++];
 }
 
 char const Lexer::peek() {
-	return isEnd() ? '\0' : source[current];
+	return UNLIKELY(isEnd() ? '\0' : source[current]);
 }
 
 char const Lexer::peekNext() {
 	return (current+1 < source.length()) ? source[current+1] : '\0';
+}
+
+void Lexer::string(std::vector<Token>* tokenList) {
+	std::string stringValue;
+	bool escape = false;
+
+	while (!isEnd()) {
+		char current_char = peek();
+
+		
+		if (current_char == '"' && !escape) {
+			proceed(); 
+			break;
+		}
+
+		
+		if (escape) {
+			switch (current_char) {
+				case 'n': stringValue += '\n'; break;
+				case 't': stringValue += '\t'; break;
+				case 'r': stringValue += '\r'; break;
+				case '\\': stringValue += '\\'; break;
+				case '"': stringValue += '"'; break;
+				case '0': stringValue += '\0'; break;
+				default: 
+						  stringValue += '\\';
+						  stringValue += current_char;
+						  break;
+			}
+			escape = false;
+		} else if (current_char == '\\') {
+			escape = true;
+		} else {
+			stringValue += current_char;
+		}
+
+		proceed();
+	}
+
+	if (isEnd()) {
+		throw std::runtime_error("Unterminated string literal");
+	}
+
+	
+	tokenList->emplace_back(Type::tok_string, stringValue, line);
 }
 
 bool Lexer::match(char c) {
@@ -41,15 +114,14 @@ void Lexer::addTok(Type type,std::vector<Token>* tokenList) {
 }
 
 void Lexer::identifier(std::vector<Token>* tokenList) {
-	while (isalnum(peek())) {
+	while (LIKELY(isalnum(peek())) || peek() == '_') {
 		proceed();
 	}
 
 	std::string text(source.substr(start, current - start));
 
-	Type type = Type::tok_identifier;
-	auto it = keywords.find(text);
-	if (it!=keywords.end()) type = it->second;
+	const KeywordEntry* keyword = Perfect_Hash::in_word_set(text.c_str(), text.length());
+	Type type = keyword ? keyword->tokenType : Type::tok_identifier;
 	tokenList->emplace_back(type,text,line);
 
 }
@@ -122,6 +194,9 @@ void Lexer::scanPunc(std::vector<Token>* tokenList,char c) {
 		case '~': addTok(Type::tok_tilde, tokenList); break;
 		case '?': addTok(Type::tok_question, tokenList); break;
 		case ':': addTok(Type::tok_colon, tokenList); break;
+		case '"': 
+				  string(tokenList);
+				  break;
 		case '#':
 				  if (match('#')) addTok(Type::tok_concat, tokenList);
 				  else addTok(Type::tok_hash, tokenList);
@@ -130,47 +205,108 @@ void Lexer::scanPunc(std::vector<Token>* tokenList,char c) {
 }
 
 void Lexer::number(std::vector<Token>* tokenList) {
-	while (isdigit(peek())) {
-		proceed();
-	}
+	
+	start = current-1;
+	bool isHex = false;
+	bool isOctal = false;
+	std::string numStr;
+	int base = 10;
 
+	
+	if (source[current-1] == '0' && (peek() == 'x' || peek() == 'X')) {
+		isHex = true;
+		proceed(); 
+
+		
+		while (LIKELY(isxdigit(peek()))) {
+			proceed();
+		}
+	} 
+	
+	else if (source[current-1] == '0' && isdigit(peek())) {
+		isOctal = true;
+
+		
+		while (LIKELY(peek() >= '0' && peek() <= '7')) {
+			proceed();
+		}
+	}
+	
+	else {
+		while (LIKELY(isdigit(peek()))) {
+			proceed();
+		}
+	}
 	std::string suffix;
-	while (isalpha(peek())) {
-		suffix += proceed();
+	while (isalpha(peek()) && peek() != '\n') {
+		suffix += std::tolower(proceed());
 	}
 
-	std::string numStr(source.substr(start, current - start - suffix.length()));
-	Token token(Type::tok_numeric, numStr + suffix, line);
+	
+	if (isHex) {
+		numStr = source.substr(start + 2, current - start - 2 - suffix.length());
+	} else if (isOctal) {
+		numStr = source.substr(start, current - start - suffix.length());
+	} else {
+		numStr = source.substr(start, current - start - suffix.length());
+	}
+
+	
+	std::string fullLiteral(source.substr(start, current - start));
+	Token token(Type::tok_numeric, fullLiteral, line);
 
 	try {
+		
+		int base = isHex ? 16 : (isOctal ? 8 : 10);
+		
 		if (suffix.empty()) {
-			token.literal = std::stoi(numStr);
+			
+			token.literal = static_cast<int>(std::stoul(numStr, nullptr, base));
+		} else {
+			
+			if (suffix == "u") {
+				token.literal = static_cast<int>(std::stoul(numStr, nullptr, base));
+			} 
+			else if (suffix == "l") {
+				token.literal = static_cast<int>(std::stol(numStr, nullptr, base));
+			} 
+			else if (suffix == "ll") {
+				token.literal = static_cast<int>(std::stoll(numStr, nullptr, base));
+			}
+			else if (suffix == "ul" || suffix == "lu") {
+				token.literal = static_cast<int>(std::stoul(numStr, nullptr, base));
+			}
+			else if (suffix == "ull" || suffix == "llu") {
+				
+				token.literal = static_cast<int>(std::stoull(numStr, nullptr, base));
+			} else {
+				throw std::runtime_error("Invalid numeric suffix: " + suffix);
+			}
 		}
-		else if (suffix == "u" || suffix == "U") {
-			token.literal = static_cast<int>(std::stoul(numStr));
+	} catch (const std::out_of_range& e) {
+		
+		std::cerr << "Numeric literal out of range: " << fullLiteral 
+			<< " (Base " << base << ")" << std::endl;
+
+		
+		try {
+			unsigned long long largeVal = std::stoull(numStr, nullptr, base);
+			token.literal = static_cast<int>(largeVal & 0xFFFFFFFF); 
+		} catch (...) {
+			std::cerr << "Failed to parse extremely large numeric literal" << std::endl;
+			throw;
 		}
-		else if (suffix == "l" || suffix == "L") {
-			token.literal = static_cast<int>(std::stol(numStr));
-		}
-		else if (!(suffix == "lL" || suffix == "Ll")) {
-			token.literal = static_cast<int>(std::stoul(numStr));
-		}
-		else {
-			throw std::runtime_error("Invalid numeric suffix: " + suffix);
-		}
-	}
-	catch (const std::out_of_range& e) {
-		throw std::runtime_error("Number out of range: " + numStr + suffix);
-	}
-	catch (const std::invalid_argument& e) {
-		throw std::runtime_error("Invalid number format: " + numStr + suffix);
+	} catch (const std::exception& e) {
+		std::cerr << "Error processing numeric literal: " << e.what() 
+			<< " (Literal: " << fullLiteral << ")" << std::endl;
+		throw;
 	}
 
-	tokenList->push_back(token);
+	tokenList->emplace_back(token);
 }
-
-
 void Lexer::scanTok(std::vector<Token>* tokenList) {
+	if (isEnd()) return; 
+	ignoreWhitespace();
 	char c = proceed();
 	if (isdigit(c)) {
 		number(tokenList);
