@@ -160,8 +160,8 @@ int main() {
 	close(fd);
 
 	// Print the tokens
-	/*for (const auto& token : tokens) {*/
-	/*	std::cout <<'[' <<token.original << ']'<< "->" << typeToStringLookup(token.type)<< std::endl; }*/
+	for (const auto& token : tokens) {
+		std::cout <<'[' <<token.original << ']'<< "->" << typeToStringLookup(token.type)<< std::endl; }
 
 	return 0;
 }

@@ -31,6 +31,7 @@ class Lexer {
 		void addTok(Type type, char c, std::vector<Token>* tokenList);
 
 		void string(std::vector<Token>* tokenList);
+		void handleFloats(std::vector<Token>* tokenList, std::string_view whole,Token* token);
 		void identifier(std::vector<Token>* tokenList);
 		void number(std::vector<Token>* tokenList);
 		void scanPunc(std::vector<Token>* tokenList, char c);

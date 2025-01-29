@@ -99,7 +99,7 @@ enum class Type {
 struct Token{
 	Type type;
 	std::string original;
-	std::variant<int,char,std::monostate> literal;
+	std::variant<int,char,float,double,std::monostate> literal;
 	size_t line;
 
 	Token(Type type, const std::string& original, size_t line): type(type), original(original),literal(std::monostate()), line(line) {};
