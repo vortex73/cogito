@@ -32,11 +32,11 @@ void Lexer::ignoreWhitespace() {
 	while (!isEnd()) {
 		char c = peek();
 		if (c == ' ' || c == '\t' || c == '\n') {
-
 			if (c == '\n') {
 				line++;  
 			}
 			proceed();  
+			start = current;
 		} else {
 			break;  
 		}
