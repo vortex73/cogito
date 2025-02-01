@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <string_view>
 #include <vector>
+#include <span>
 
 class Lexer {
 	public:
@@ -13,7 +14,7 @@ class Lexer {
 	std::vector<Token> tokenize();
 
 	private:
-		std::string_view source;
+		std::span<const char> source;
 		std::vector<Token> tokenList;
 		size_t start = 0;
 		size_t current = 0;

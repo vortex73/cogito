@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <string>
 #include <variant>
 enum class Type {
@@ -98,9 +99,24 @@ enum class Type {
 
 struct Token{
 	Type type;
-	std::string original;
+	std::span<const char> original;
 	std::variant<int,char,float,double,std::monostate> literal;
 	size_t line;
 
-	Token(Type type, const std::string& original, size_t line): type(type), original(original),literal(std::monostate()), line(line) {};
+	Token(Type type, const std::span<const char> original, size_t line): type(type), original(original),literal(std::monostate()), line(line) {};
+	template<typename StringLike, 
+		std::enable_if_t<std::is_convertible_v<StringLike, std::string_view>, int> = 0>
+			Token(Type type, const StringLike& original, size_t line) 
+			: type(type), 
+			original(reinterpret_cast<const char*>(original.data()), original.size()), 
+			literal(std::monostate()), 
+			line(line) {}
+
+	// Overloaded constructor for string literals
+	template<size_t N>
+		Token(Type type, const char (&original)[N], size_t line) 
+		: type(type), 
+		original(original, N-1), 
+		literal(std::monostate()), 
+		line(line) {}
 };
