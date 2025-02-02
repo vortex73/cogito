@@ -17,15 +17,28 @@
 #define UNLIKELY(x)  (x)
 #endif
 
-std::vector<Token> Lexer::tokenize() {
-	std::vector<Token> tokenList;
-	tokenList.reserve(source.size()/4 + 16);
-	while (LIKELY(current < source.size())) {
+
+
+Token Lexer::tokenize() {
+	Token token = Token(Type::tok_eof, std::span<const char>{},line);
+	while(!isEnd()) {
 		start = current;
-		scanTok(&tokenList);
+		ignoreWhitespace();
+		char c = proceed();
+		if (c=='\n') proceed();
+		if (isdigit(c)||(c=='.' && isdigit(peek()))) {
+			token = number();
+			return token;
+		} else if (isalpha(c) || c == '_') {
+			token = identifier();
+			return token;
+		} else {
+			token = scanPunc();
+			return token;
+		}
+		return Token(Type::tok_unidentified,source.subspan(start,current-start),line);
 	}
-	tokenList.emplace_back(Type::tok_eof, std::span<const char>{}, line);
-	return tokenList;
+	return token;
 }
 
 void Lexer::ignoreWhitespace() {
@@ -60,18 +73,39 @@ char const Lexer::peekNext() {
 	return (current+1 < source.size()) ? source[current+1] : '\0';
 }
 
-void Lexer::string(std::vector<Token>* tokenList) {
+Token Lexer::character() {
+	if (isEnd()) throw std::runtime_error("Unterminated character literal");
+
+	size_t charStart = current;
+	char c = proceed();
+
+	if (c == '\\') {
+		proceed();
+	}
+
+	if (proceed() != '\'') throw std::runtime_error("Expected closing single quote");
+
+	return Token(Type::tok_char_literal, source.subspan(charStart, current - charStart-1), line);
+}
+
+
+Token Lexer::string() {
 	size_t stringBegin = current;
-	/*bool escape = false;*/
+	bool escape = false;
 
 	while (!isEnd()) {
 		char current_char = peek();
+		if (current_char == '\\' && !escape) { // Detect escape character
+			escape = true;
+			proceed();
+			continue;
+		}
 
-
-		if (current_char == '"') {
+		if (current_char == '"' && !escape) {
 			proceed(); 
 			break;
 		}
+		escape = false;
 
 		proceed();
 	}
@@ -81,7 +115,7 @@ void Lexer::string(std::vector<Token>* tokenList) {
 	}
 
 	std::span<const char> stringSpan = source.subspan(stringBegin,current-stringBegin-1);
-	tokenList->emplace_back(Type::tok_string, stringSpan, line);
+	return Token(Type::tok_string,stringSpan,line);
 }
 
 bool Lexer::match(char c) {
@@ -90,109 +124,113 @@ bool Lexer::match(char c) {
 	return true;
 }
 
-void Lexer::addTok(Type type,std::vector<Token>* tokenList) {
-	std::span<const char> text = source.subspan(start,current-start);
-	tokenList->push_back(Token(type, text, line));
-}
-
-void Lexer::identifier(std::vector<Token>* tokenList) {
+Token Lexer::identifier() {
 	while (LIKELY(isalnum(peek())) || peek() == '_') {
 		proceed();
 	}
 
-    std::string_view text(source.data() + start, current - start);
+    std::span text(source.data() + start, current - start);
+	const char* text_start = source.data() + start;
 
-	const KeywordEntry* keyword = Perfect_Hash::in_word_set(text.data(), text.size());
+
+	const KeywordEntry* keyword = Perfect_Hash::in_word_set(text);
 	Type type = keyword ? keyword->tokenType : Type::tok_identifier;
-	tokenList->emplace_back(type,text,line);
+	return Token(type,text,line);
 }
 
-void Lexer::scanPunc(std::vector<Token>* tokenList,char c) {
+Token Lexer::scanPunc() {
+	char c = source[current-1];
+	Type t = Type::tok_unidentified;
 	switch (c) {
-		case '[': addTok(Type::tok_lbracket, tokenList); break;
-		case ']': addTok(Type::tok_rbracket, tokenList); break;
-		case '(': addTok(Type::tok_lparen, tokenList); break;
-		case ')': addTok(Type::tok_rparen, tokenList); break;
-		case '{': addTok(Type::tok_lbrace, tokenList); break;
-		case '}': addTok(Type::tok_rbrace, tokenList); break;
-		case ',': addTok(Type::tok_comma, tokenList); break;
-		case ';': addTok(Type::tok_semicolon, tokenList); break;
-		case '.': 
-				  if (match('.') && match('.')) addTok(Type::tok_ellipsis, tokenList);
-				  else addTok(Type::tok_dot, tokenList);
-				  break;
+		case '[': t = Type::tok_lbracket;break;
+		case ']':t = Type::tok_rbracket ; break; 
+		case '(':t = Type::tok_lparen ; break;
+		case ')':t = Type::tok_rparen ; break;
+		case '{':t = Type::tok_lbrace ; break;
+		case '}':t = Type::tok_rbrace ; break;
+		case ',':t = Type::tok_comma ; break;
+		case ';': t = Type::tok_semicolon ; break;
+		case '.':
+				  if (match('.') && match('.')) {t = Type::tok_ellipsis;}
+				  else {t = Type::tok_dot ;} break;
 		case '&':
-				  if (match('&')) addTok(Type::tok_and, tokenList);
-				  else addTok(Type::tok_amp, tokenList);
-				  break;
+				  if (match('&')) {t = Type::tok_and;}
+				  else if (match('=')) {t = Type::tok_and_assign;break;}
+				  else {t = Type::tok_amp;} break;
 		case '|':
-				  if (match('|')) addTok(Type::tok_or, tokenList);
-				  else addTok(Type::tok_pipe, tokenList);
-				  break;
+				  if (match('|')) {t = Type::tok_or;}
+				  else if (match('=')) {t = Type::tok_or_assign;break;}
+				  else {t = Type::tok_pipe;} break;
 		case '!':
-				  if (match('=')) addTok(Type::tok_ne, tokenList);
-				  else addTok(Type::tok_not, tokenList);
-				  break;
+				  if (match('=')) {t = Type::tok_ne;}
+				  else {t = Type::tok_not;} break;
 		case '<':
-				  if (match('=')) addTok(Type::tok_le, tokenList);
-				  else if (match('<')) addTok(Type::tok_lshift, tokenList);
-				  else addTok(Type::tok_lt, tokenList);
-				  break;
+				  if (match('=')){ t = Type::tok_le;break;}
+				  else if (match('<')) {t = Type::tok_lshift;break;}
+				  else {t = Type::tok_lt;break;}
 		case '>':
-				  if (match('=')) addTok(Type::tok_ge, tokenList);
-				  else if (match('>')) addTok(Type::tok_rshift, tokenList);
-				  else addTok(Type::tok_gt, tokenList);
-				  break;
+				  if (match('=')){ t = Type::tok_ge;break;}
+				  else if (match('>')) {t = Type::tok_rshift;break;}
+				  else {t = Type::tok_gt;break;}
 		case '=':
-				  if (match('=')) addTok(Type::tok_eq, tokenList);
-				  else addTok(Type::tok_assign, tokenList);
-				  break;
+				  if (match('=')) {t = Type::tok_eq;break;}
+				  else {t = Type::tok_assign;break;}
 		case '+':
-				  if (match('+')) addTok(Type::tok_inc, tokenList);
-				  else addTok(Type::tok_plus, tokenList);
-				  break;
+				  if (match('+')) {t = Type::tok_inc;break;}
+				  else if (match('=')) {t = Type::tok_plus_assign;break;}
+				  else {t = Type::tok_plus;break;}
 		case '-':
-				  if (match('-')) addTok(Type::tok_dec, tokenList);
-				  else if (match('>')) addTok(Type::tok_arrow, tokenList);
-				  else addTok(Type::tok_minus, tokenList);
-				  break;
-		case '*': addTok(Type::tok_star, tokenList); break;
+				  if (match('-')) {t = Type::tok_dec;break;}
+				  else if (match('=')) {t = Type::tok_minus_assign;break;}
+				  else if (match('>')) {t = Type::tok_arrow;break;}
+				  else {t = Type::tok_minus;break;}
+		case '*':
+				  if (match('=')) {t = Type::tok_multiply_assign;break;}
+				  else {t = Type::tok_star;break;}
 		case '/':
 				  if (match('/')) {
 					  while (peek() != '\n' && !isEnd()) proceed();
-				  } else if (match('*')) {
+					  return tokenize();
+				  } 
+				  else if (match('=')) {t = Type::tok_divide_assign;break;}
+				  else if (match('*')) {
 					  while (true) {
 						  if (isEnd()) throw std::runtime_error("Unterminated block comment");
-						  if (match('*') && match('/')) break;
+						  if (match('*') && match('/')) return tokenize();
 						  proceed();
 					  }
 				  } else {
-					  addTok(Type::tok_slash, tokenList);
+					  t = Type::tok_slash;
 				  }
 				  break;
-		case '%': addTok(Type::tok_percent, tokenList); break;
-		case '^': addTok(Type::tok_caret, tokenList); break;
-		case '~': addTok(Type::tok_tilde, tokenList); break;
-		case '?': addTok(Type::tok_question, tokenList); break;
-		case ':': addTok(Type::tok_colon, tokenList); break;
+		case '%': 
+				  if (match('=')) {t = Type::tok_modulo_assign;break;}
+				  else {t = Type::tok_percent; break;}
+		case '^': 
+				  if (match('=')) {t = Type::tok_xor_assign;break;}
+				  else {t = Type::tok_caret; break;}
+		case '~': t = Type::tok_tilde; break;
+		case '?': t = Type::tok_question;break;
+		case ':': t = Type::tok_colon;break;
+		case '\'':
+				  return character();
 		case '"': 
-				  string(tokenList);
-				  break;
+				  return string();
 		case '#':
-				  if (match('#')) addTok(Type::tok_concat, tokenList);
-				  else addTok(Type::tok_hash, tokenList);
-				  break;
+				  if (match('#')) {t = Type::tok_concat;break;}
+				  else {t = Type::tok_hash;break;}
 	}
+	return Token(t,source.subspan(start,current-start),line);
 }
 
 
-void Lexer::number(std::vector<Token>* tokenList) {
+Token Lexer::number() {
 	size_t numStart = current-1;
 	bool isHex = false, isOctal = false, isFloat = false;
 	int base = 10;
 	std::span<const char> fullLiteralSpan = source.subspan(numStart);
 
-
+	if (source[numStart] == '.') isFloat = 1;
 	if (source[current-1] == '0' && (peek() == 'x' || peek() == 'X')) {
 		isHex = true;
 		proceed(); 
@@ -263,7 +301,8 @@ void Lexer::number(std::vector<Token>* tokenList) {
 
 	std::string suffix;
 	while (isalpha(peek()) && peek() != '\n') {
-		suffix += std::tolower(proceed());
+		char ch = proceed();
+		suffix += (ch == 'F' || ch == 'L' || ch == 'U') ? (ch + 32) : ch;
 	}
 
 	std::span<const char> numSpan = source.subspan(
@@ -279,33 +318,13 @@ void Lexer::number(std::vector<Token>* tokenList) {
 			double value;
 
 			iss >> std::hexfloat >> value;
+			token.literal = (suffix == "l") ? static_cast<long double>(value) : static_cast<float>(value);
 
-			if (suffix == "f") {
-				token.literal = static_cast<float>(value);
-			} else if (suffix == "l") {
-				token.literal = static_cast<float>(static_cast<long double>(value));
-			} else {
-				token.literal = static_cast<float>(value);
-			}
 		} else {
 			
 			int base = isHex ? 16 : (isOctal ? 8 : 10);
 			std::string numStr(numSpan.begin(), numSpan.end());
 			
-			/*if (!suffix.empty()) {*/
-			/*	if (suffix.length() > 3) {*/
-			/*		throw std::runtime_error("Invalid suffix length: " + suffix);*/
-			/*	}*/
-			/**/
-			/*	
-			/*	bool hasU = suffix.find('u') != std::string::npos;*/
-			/*	int lCount = std::__count_if(suffix.begin(), suffix.end(), [](char c) {return c == 'l';});*/
-			/**/
-			/*	if (lCount > 2 || (hasU && suffix[0] != 'u' && suffix.back() != 'u')) {*/
-			/*		throw std::runtime_error("Invalid suffix combination: " + suffix);*/
-			/*	}*/
-			/*}*/
-
 			
 			try {
 				if (suffix.empty()) {
@@ -342,18 +361,5 @@ void Lexer::number(std::vector<Token>* tokenList) {
 		throw;
 	}
 
-	tokenList->emplace_back(token);
-}
-void Lexer::scanTok(std::vector<Token>* tokenList) {
-	if (isEnd()) return; 
-	ignoreWhitespace();
-	char c = proceed();
-	if (c=='\n') proceed();
-	if (isdigit(c)||(c=='.' && isdigit(peekNext()))) {
-		number(tokenList);
-	} else if (isalpha(c) || c == '_') {
-		identifier(tokenList);
-	} else {
-		scanPunc(tokenList,c);
-	}
+	return token;
 }

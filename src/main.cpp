@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include <chrono>
 #include <cerrno>
 #include <iostream>
 #include <fstream>
@@ -21,100 +22,14 @@ using std::ifstream;
 
 #define TOKEN_TYPE_STR(x) #x
 
-#define STRINGIFY_TOKEN_ENUM(type) \
-    ([]() { \
-        switch(type) { \
-            case Type::tok_int: return "int"; \
-            case Type::tok_char: return "char"; \
-            case Type::tok_double: return "double"; \
-            case Type::tok_float: return "float"; \
-            case Type::tok_auto: return "auto"; \
-            case Type::tok_enum: return "enum"; \
-            case Type::tok_restrict: return "restrict"; \
-            case Type::tok_unsigned: return "unsigned"; \
-            case Type::tok_break: return "break"; \
-            case Type::tok_extern: return "extern"; \
-            case Type::tok_return: return "return"; \
-            case Type::tok_case: return "case"; \
-            case Type::tok_signed: return "signed"; \
-            case Type::tok_for: return "for"; \
-            case Type::tok_while: return "while"; \
-            case Type::tok_const: return "const"; \
-            case Type::tok_volatile: return "volatile"; \
-            case Type::tok_short: return "short"; \
-            case Type::tok_goto: return "goto"; \
-            case Type::tok_sizeof: return "sizeof"; \
-            case Type::tok_bool: return "bool"; \
-            case Type::tok_default: return "default"; \
-            case Type::tok_inline: return "inline"; \
-            case Type::tok_struct: return "struct"; \
-            case Type::tok_imaginary: return "imaginary"; \
-            case Type::tok_do: return "do"; \
-            case Type::tok_switch: return "switch"; \
-            case Type::tok_complex: return "complex"; \
-            case Type::tok_if: return "if"; \
-            case Type::tok_static: return "static"; \
-            case Type::tok_continue: return "continue"; \
-            case Type::tok_long: return "long"; \
-            case Type::tok_typedef: return "typedef"; \
-            case Type::tok_else: return "else"; \
-            case Type::tok_register: return "register"; \
-            case Type::tok_union: return "union"; \
-            case Type::tok_void: return "void"; \
-            case Type::tok_Bool: return "Bool"; \
-            case Type::tok_Complex: return "Complex"; \
-            case Type::tok_Imaginary: return "Imaginary"; \
-            case Type::tok_string: return "string"; \
-            case Type::tok_numeric: return "numeric"; \
-            case Type::tok_identifier: return "identifier"; \
-            case Type::tok_eof: return "eof"; \
-            case Type::tok_lparen: return "("; \
-            case Type::tok_rparen: return ")"; \
-            case Type::tok_lbrace: return "{"; \
-            case Type::tok_rbrace: return "}"; \
-            case Type::tok_semicolon: return ";"; \
-            case Type::tok_lbracket: return "["; \
-            case Type::tok_rbracket: return "]"; \
-            case Type::tok_comma: return ","; \
-            case Type::tok_ellipsis: return "..."; \
-            case Type::tok_dot: return "."; \
-            case Type::tok_and: return "&&"; \
-            case Type::tok_amp: return "&"; \
-            case Type::tok_or: return "||"; \
-            case Type::tok_pipe: return "|"; \
-            case Type::tok_not: return "!"; \
-            case Type::tok_le: return "<="; \
-            case Type::tok_lshift: return "<<"; \
-            case Type::tok_lt: return "<"; \
-            case Type::tok_ge: return ">="; \
-            case Type::tok_rshift: return ">>"; \
-            case Type::tok_gt: return ">"; \
-            case Type::tok_assign: return "="; \
-            case Type::tok_inc: return "++"; \
-            case Type::tok_dec: return "--"; \
-            case Type::tok_arrow: return "->"; \
-            case Type::tok_percent: return "%"; \
-            case Type::tok_caret: return "^"; \
-            case Type::tok_tilde: return "~"; \
-            case Type::tok_question: return "?"; \
-            case Type::tok_colon: return ":"; \
-            case Type::tok_concat: return "##"; \
-            case Type::tok_eq: return "=="; \
-            case Type::tok_ne: return "!="; \
-            case Type::tok_plus: return "+"; \
-            case Type::tok_minus: return "-"; \
-            case Type::tok_star: return "*"; \
-            case Type::tok_hash: return "#"; \
-            case Type::tok_slash: return "/"; \
-            default: return "unknown"; \
-        } \
-    }())
 std::unordered_map<Type, std::string> typeToString = {
 	// Types
 	{Type::tok_unidentified, "tok_unidentified"},
 
 	// Keywords
 	{Type::tok_string,"tok_string"},
+	{Type::tok_percent,"tok_percent"},
+	{Type::tok_dot,"tok_dot"},
 	{Type::tok_int, "tok_int"},
 	{Type::tok_char, "tok_char"},
 	{Type::tok_double, "tok_double"},
@@ -244,12 +159,29 @@ int main() {
 
 	std::string_view sourceCode(mapped, sb.st_size);
 	Lexer lexer(sourceCode);
+	size_t tokenCount = 0;
+	auto start = std::chrono::high_resolution_clock::now();
 	auto tokens = lexer.tokenize();
 
 
 	// Print the tokens
-	for (const auto& token : tokens) {
-		std::cout << '[' << std::string(token.original.begin(),token.original.end()) << ']' << "->" << STRINGIFY_TOKEN_ENUM(token.type)<< std::endl; }
+	while (tokens.type!=Type::tok_eof) {
+		tokenCount++;
+		/*std::cout << '[' << typeToStringLookup(tokens.type)<<  ']' <<  "->" << '[' << std::string(tokens.original.begin(),tokens.original.end())<< ']' << std::endl;*/
+		tokens = lexer.tokenize();
+	}
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+	double tokensPerMicrosecond = static_cast<double>(tokenCount) / duration.count();
+	double tokensPerSecond = tokensPerMicrosecond * 1'000'000;
+
+	std::cout << "Tokens: " << tokenCount << std::endl;
+	std::cout << "Time: " << duration.count() << " microseconds" << std::endl;
+	std::cout << "Speed: " << std::fixed << std::setprecision(2) 
+		<< tokensPerMicrosecond << " tokens/microsecond ("
+		<< tokensPerSecond << " tokens/second)" << std::endl;
+
 		// Clean up
 		munmap(mapped, sb.st_size);
 		close(fd);

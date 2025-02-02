@@ -50,7 +50,7 @@ enum class Type {
 	tok_Imaginary,
 
 	// Language Constructs
-	tok_string,
+	tok_string, //42
 	tok_numeric,
 	tok_identifier,
 	tok_eof,
@@ -94,13 +94,22 @@ enum class Type {
 	tok_minus,
 	tok_star,
 	tok_hash,
-	tok_slash
+	tok_slash,
+	tok_char_literal,
+	tok_and_assign,
+	tok_or_assign,
+	tok_plus_assign,
+	tok_minus_assign,
+	tok_multiply_assign,
+	tok_divide_assign,
+	tok_xor_assign,
+	tok_modulo_assign
 };
 
 struct Token{
 	Type type;
 	std::span<const char> original;
-	std::variant<int,char,float,double,std::monostate> literal;
+	std::variant<int,char,float,long double,double,std::monostate> literal;
 	size_t line;
 
 	Token(Type type, const std::span<const char> original, size_t line): type(type), original(original),literal(std::monostate()), line(line) {};
