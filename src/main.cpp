@@ -23,10 +23,10 @@ using std::ifstream;
 #define TOKEN_TYPE_STR(x) #x
 
 std::unordered_map<Type, std::string> typeToString = {
-	// Types
+	
 	{Type::tok_unidentified, "tok_unidentified"},
 
-	// Keywords
+	
 	{Type::tok_string,"tok_string"},
 	{Type::tok_percent,"tok_percent"},
 	{Type::tok_dot,"tok_dot"},
@@ -71,7 +71,7 @@ std::unordered_map<Type, std::string> typeToString = {
 	{Type::tok_Complex, "tok_Complex"},
 	{Type::tok_Imaginary, "tok_Imaginary"},
 
-	// Language Constructs
+	
 	{Type::tok_numeric, "tok_numeric"},
 	{Type::tok_identifier, "tok_identifier"},
 	{Type::tok_eof, "tok_eof"},
@@ -81,7 +81,7 @@ std::unordered_map<Type, std::string> typeToString = {
 	{Type::tok_rbrace, "tok_rbrace"},
 	{Type::tok_semicolon, "tok_semicolon"},
 
-	// Operators
+	
 	{Type::tok_assign, "tok_assign"},
 	{Type::tok_plus, "tok_plus"},
 	{Type::tok_minus, "tok_minus"},
@@ -92,7 +92,7 @@ std::unordered_map<Type, std::string> typeToString = {
 	{Type::tok_assign, "tok_assign"},
 	{Type::tok_arrow, "tok_arrow"}};
 
-// Usage example
+
 std::string typeToStringLookup(Type type) {
 	auto it = typeToString.find(type);
 	if (it != typeToString.end()) {
@@ -115,11 +115,11 @@ std::optional<std::string_view> mmapFile(const std::string& file) {
 		return std::nullopt;
 	}
 	void* mapped = mmap(
-			nullptr,           // Let OS choose mapping address
+			nullptr,           
 			sb.st_size, 
-			PROT_READ,         // Read-only protection
-			MAP_PRIVATE |      // Private copy-on-write mapping
-			MAP_POPULATE,      // Prefault pages for better performance
+			PROT_READ,         
+			MAP_PRIVATE |      
+			MAP_POPULATE,      
 			fd, 
 			0
 			);
@@ -130,7 +130,7 @@ std::optional<std::string_view> mmapFile(const std::string& file) {
 		return std::nullopt;
 	}
 
-	// Use madvise for performance hints
+	
 	madvise(mapped, sb.st_size, MADV_SEQUENTIAL | MADV_WILLNEED);
 
 	return std::string_view(static_cast<const char*>(mapped), sb.st_size);
@@ -164,7 +164,7 @@ int main() {
 	auto tokens = lexer.tokenize();
 
 
-	// Print the tokens
+	
 	while (tokens.type!=Type::tok_eof) {
 		tokenCount++;
 		/*std::cout << '[' << typeToStringLookup(tokens.type)<<  ']' <<  "->" << '[' << std::string(tokens.original.begin(),tokens.original.end())<< ']' << std::endl;*/
@@ -182,7 +182,7 @@ int main() {
 		<< tokensPerMicrosecond << " tokens/microsecond ("
 		<< tokensPerSecond << " tokens/second)" << std::endl;
 
-		// Clean up
+		
 		munmap(mapped, sb.st_size);
 		close(fd);
 

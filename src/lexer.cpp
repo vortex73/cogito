@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include <algorithm>
 #include <sstream>
 #include "token.h"
 #include <cctype>
@@ -16,8 +17,6 @@
 #define LIKELY(x)    (x)
 #define UNLIKELY(x)  (x)
 #endif
-
-
 
 Token Lexer::tokenize() {
 	Token token = Token(Type::tok_eof, std::span<const char>{},line);
@@ -95,7 +94,7 @@ Token Lexer::string() {
 
 	while (!isEnd()) {
 		char current_char = peek();
-		if (current_char == '\\' && !escape) { // Detect escape character
+		if (current_char == '\\' && !escape) { 
 			escape = true;
 			proceed();
 			continue;
@@ -223,6 +222,22 @@ Token Lexer::scanPunc() {
 	return Token(t,source.subspan(start,current-start),line);
 }
 
+bool equals(std::span<const char> span, const char* keyword) {
+	if (span.empty() || !keyword || !keyword[0]) return false;
+
+	
+	if (span[0] != keyword[0]) return false;
+
+	
+	size_t i = 1;
+	while (i < span.size() && keyword[i] != '\0') {
+		if (span[i] != keyword[i]) return false;
+		i++;
+	}
+	return i == span.size() && keyword[i] == '\0';
+}
+
+
 
 Token Lexer::number() {
 	size_t numStart = current-1;
@@ -299,15 +314,17 @@ Token Lexer::number() {
 		}
 	}
 
-	std::string suffix;
+	/*std::string suffix;*/
+	int sufStart = current;
 	while (isalpha(peek()) && peek() != '\n') {
 		char ch = proceed();
-		suffix += (ch == 'F' || ch == 'L' || ch == 'U') ? (ch + 32) : ch;
 	}
+	std::span<const char> suffix = source.subspan(sufStart,current-sufStart);
+	int len = suffix.size();
 
 	std::span<const char> numSpan = source.subspan(
 			numStart + (isHex ? 2 : 0), 
-			current - numStart - (isHex ? 2 : 0) - suffix.length()
+			current - numStart - (isHex ? 2 : 0) - suffix.size()
 			);
 	Token token(Type::tok_numeric, numSpan, line);
 
@@ -318,7 +335,7 @@ Token Lexer::number() {
 			double value;
 
 			iss >> std::hexfloat >> value;
-			token.literal = (suffix == "l") ? static_cast<long double>(value) : static_cast<float>(value);
+			token.literal = (equals(suffix,"l")) ? static_cast<long double>(value) : static_cast<float>(value);
 
 		} else {
 			
@@ -329,18 +346,18 @@ Token Lexer::number() {
 			try {
 				if (suffix.empty()) {
 					token.literal = static_cast<int>(std::stol(numStr, nullptr, base));
-				} else if (suffix == "u") {
+				} else if (equals(suffix,"u") || equals(suffix,"U")) {
 					token.literal = static_cast<int>(std::stoul(numStr, nullptr, base));
-				} else if (suffix == "l") {
+				} else if (equals(suffix,"l") || equals(suffix,"L")) {
 					token.literal = static_cast<int>(std::stol(numStr, nullptr, base));
-				} else if (suffix == "ul" || suffix == "lu") {
+				} else if (equals(suffix,"ul") || equals(suffix,"lu") || equals(suffix,"LU") || equals(suffix,"UL")) {
 					token.literal = static_cast<int>(std::stoul(numStr, nullptr, base));
-				} else if (suffix == "ll") {
+				} else if (equals(suffix,"ll") || equals(suffix,"LL")) {
 					token.literal = static_cast<int>(std::stoll(numStr, nullptr, base));
-				} else if (suffix == "ull" || suffix == "llu") {
+				} else if (equals(suffix,"ull")|| equals(suffix,"llu") || equals(suffix, "ULL") || equals(suffix, "LLU") || equals(suffix, "uLL") || equals(suffix,"Ull")) {
 					token.literal = static_cast<int>(std::stoull(numStr, nullptr, base));
 				} else {
-					throw std::runtime_error("Invalid numeric suffix: " + suffix);
+					throw std::runtime_error("Invalid numeric suffix: ");
 				}
 			} catch (const std::out_of_range& e) {
 				std::cerr << "Numeric literal out of range: " << std::string(numSpan.begin(), numSpan.end())

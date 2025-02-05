@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Simplified optimization flags
-set(CMAKE_CXX_FLAGS "-O3 -march=native -mtune=native")
+set(CMAKE_CXX_FLAGS "-O3 -march=native -mtune=native -static")
 
 include(FetchContent)
 FetchContent_Declare(

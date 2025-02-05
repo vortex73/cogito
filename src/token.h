@@ -109,7 +109,7 @@ enum class Type {
 struct Token{
 	Type type;
 	std::span<const char> original;
-	std::variant<int,char,float,long double,double,std::monostate> literal;
+	std::variant<int,char,float,long double,double, long long,std::monostate> literal;
 	size_t line;
 
 	Token(Type type, const std::span<const char> original, size_t line): type(type), original(original),literal(std::monostate()), line(line) {};
@@ -121,7 +121,6 @@ struct Token{
 			literal(std::monostate()), 
 			line(line) {}
 
-	// Overloaded constructor for string literals
 	template<size_t N>
 		Token(Type type, const char (&original)[N], size_t line) 
 		: type(type), 

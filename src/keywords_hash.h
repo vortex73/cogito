@@ -1,6 +1,3 @@
-/* C++ code produced by gperf version 3.1 */
-/* Computed positions: -k'1,3' */
-
 #include "token.h"
 #include <span>
 
@@ -27,15 +24,12 @@
 		&& ('s' == 115) && ('t' == 116) && ('u' == 117) && ('v' == 118) \
 		&& ('w' == 119) && ('x' == 120) && ('y' == 121) && ('z' == 122) \
 		&& ('{' == 123) && ('|' == 124) && ('}' == 125) && ('~' == 126))
-#error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gperf@gnu.org>."
 #endif
 
 struct KeywordEntry {
 	const char* name;
 	Type tokenType;
 };
-
-/* maximum key range = 52, duplicates = 0 */
 
 class Perfect_Hash {
 	private:
@@ -99,10 +93,8 @@ inline unsigned int Perfect_Hash::hash(std::span<const char> span) {
 inline bool Perfect_Hash::equals(std::span<const char> span, const char* keyword) {
 	if (span.empty() || !keyword || !keyword[0]) return false;
 
-	// First char comparison
 	if (span[0] != keyword[0]) return false;
 
-	// Compare rest of the characters
 	size_t i = 1;
 	while (i < span.size() && keyword[i] != '\0') {
 		if (span[i] != keyword[i]) return false;
