@@ -23,10 +23,10 @@ using std::ifstream;
 #define TOKEN_TYPE_STR(x) #x
 
 std::unordered_map<Type, std::string> typeToString = {
-	
+
 	{Type::tok_unidentified, "tok_unidentified"},
 
-	
+
 	{Type::tok_string,"tok_string"},
 	{Type::tok_percent,"tok_percent"},
 	{Type::tok_dot,"tok_dot"},
@@ -71,7 +71,7 @@ std::unordered_map<Type, std::string> typeToString = {
 	{Type::tok_Complex, "tok_Complex"},
 	{Type::tok_Imaginary, "tok_Imaginary"},
 
-	
+
 	{Type::tok_numeric, "tok_numeric"},
 	{Type::tok_identifier, "tok_identifier"},
 	{Type::tok_eof, "tok_eof"},
@@ -81,7 +81,7 @@ std::unordered_map<Type, std::string> typeToString = {
 	{Type::tok_rbrace, "tok_rbrace"},
 	{Type::tok_semicolon, "tok_semicolon"},
 
-	
+
 	{Type::tok_assign, "tok_assign"},
 	{Type::tok_plus, "tok_plus"},
 	{Type::tok_minus, "tok_minus"},
@@ -115,12 +115,12 @@ std::optional<std::string_view> mmapFile(const std::string& file) {
 		return std::nullopt;
 	}
 	void* mapped = mmap(
-			nullptr,           
-			sb.st_size, 
-			PROT_READ,         
-			MAP_PRIVATE |      
-			MAP_POPULATE,      
-			fd, 
+			nullptr,
+			sb.st_size,
+			PROT_READ,
+			MAP_PRIVATE |
+			MAP_POPULATE,
+			fd,
 			0
 			);
 	close(fd);
@@ -130,7 +130,7 @@ std::optional<std::string_view> mmapFile(const std::string& file) {
 		return std::nullopt;
 	}
 
-	
+
 	madvise(mapped, sb.st_size, MADV_SEQUENTIAL | MADV_WILLNEED);
 
 	return std::string_view(static_cast<const char*>(mapped), sb.st_size);
@@ -164,7 +164,7 @@ int main() {
 	auto tokens = lexer.tokenize();
 
 
-	
+
 	while (tokens.type!=Type::tok_eof) {
 		tokenCount++;
 		/*std::cout << '[' << typeToStringLookup(tokens.type)<<  ']' <<  "->" << '[' << std::string(tokens.original.begin(),tokens.original.end())<< ']' << std::endl;*/
@@ -178,11 +178,11 @@ int main() {
 
 	std::cout << "Tokens: " << tokenCount << std::endl;
 	std::cout << "Time: " << duration.count() << " microseconds" << std::endl;
-	std::cout << "Speed: " << std::fixed << std::setprecision(2) 
+	std::cout << "Speed: " << std::fixed << std::setprecision(2)
 		<< tokensPerMicrosecond << " tokens/microsecond ("
 		<< tokensPerSecond << " tokens/second)" << std::endl;
 
-		
+
 		munmap(mapped, sb.st_size);
 		close(fd);
 
